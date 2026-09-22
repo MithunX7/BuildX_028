@@ -18,6 +18,7 @@ import {
   Shield,
   ChevronDown,
   Sparkles,
+  Route,
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { isAdminRole } from '../../types/auth';
@@ -54,7 +55,7 @@ export const ConsoleNavbar: React.FC = () => {
 
   // Nav links based on role
   const adminNavLinks = [
-    { href: '/admin', label: 'Command Center', icon: Activity },
+    { href: '/admin', label: 'Infrastructure', icon: Route },
     { href: '/admin/issues', label: 'All Issues', icon: ListTodo },
     { href: '/admin/triage', label: 'Risk Triage', icon: Wrench },
     { href: '/admin/work-orders', label: 'Work Orders', icon: CheckCircle2 },
