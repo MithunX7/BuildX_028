@@ -1,23 +1,26 @@
 export type UserRole =
+  | "USER"
+  | "CITIZEN"
+  | "ADMIN"
   | "COMMANDER"
   | "COORDINATOR"
   | "INSPECTOR"
   | "VERIFIER"
-  | "OPERATOR"
-  | "CITIZEN"
-  | "ADMIN";
+  | "OPERATOR";
 
 export interface SessionUser {
-  userId: string;
+  id: string;
+  userId?: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: "USER" | "ADMIN" | UserRole;
   departmentId?: string;
   departmentName?: string;
   departmentCode?: string;
+  phone?: string;
 }
 
-export interface AuthSession {
-  user: SessionUser;
-  expiresAt: string;
+export function isAdminRole(role?: string): boolean {
+  if (!role) return false;
+  return ["ADMIN", "COMMANDER", "COORDINATOR", "VERIFIER", "INSPECTOR", "OPERATOR"].includes(role);
 }

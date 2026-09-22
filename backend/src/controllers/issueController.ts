@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Issue } from "../models/Issue";
-import { Detection } from "../models/Detection";
 import { WorkOrder } from "../models/WorkOrder";
 import { Department } from "../models/Department";
 import { ConstructionProject } from "../models/ConstructionProject";
+import { AuditLog } from "../models/AuditLog";
 import { IssueTriageSchema, CitizenReportSchema } from "../validators";
 import { calculateExplainablePriority } from "../services/prioritizationService";
 import { suggestDepartmentForCategory } from "../services/routingEngine";
@@ -19,21 +19,38 @@ export async function getIssues(req: Request, res: Response) {
     const { category, status, priorityLevel, search } = req.query;
     const filter: Record<string, unknown> = {};
 
-    if (category) filter.category = category;
-    if (status) filter.status = status;
-    if (priorityLevel) filter.priorityLevel = priorityLevel;
-    if (search && typeof search === "string") {
+    if (category && category !== "ALL") filter.category = category;
+    if (status && status !== "ALL") filter.status = status;
+    if (priorityLevel && priorityLevel !== "ALL") filter.priorityLevel = priorityLevel;
+    if (search && typeof search === "string" && search.trim()) {
       filter.$or = [
-        { referenceCode: { $regex: search, $options: "i" } },
-        { title: { $regex: search, $options: "i" } },
-        { "location.addressText": { $regex: search, $options: "i" } },
+        { referenceCode: { $regex: search.trim(), $options: "i" } },
+        { title: { $regex: search.trim(), $options: "i" } },
+        { "location.addressText": { $regex: search.trim(), $options: "i" } },
       ];
     }
 
     const issues = await Issue.find(filter)
-      .sort({ priorityScore: -1, lastUpdatedAt: -1 })
+      .sort({ priorityScore: -1, createdAt: -1 })
       .populate("departmentId", "name code slaHours")
       .limit(100);
+
+    return sendSuccess(res, issues);
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+export async function getMyReports(req: AuthenticatedRequest, res: Response) {
+  try {
+    if (!req.user?.id) {
+      return sendSuccess(res, []);
+    }
+
+    const issues = await Issue.find({ reporterId: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate("departmentId", "name code slaHours")
+      .populate("activeWorkOrderId");
 
     return sendSuccess(res, issues);
   } catch (error) {
@@ -44,16 +61,24 @@ export async function getIssues(req: Request, res: Response) {
 export async function getIssueById(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const issue = await Issue.findById(id).populate("departmentId", "name code contactEmail slaHours");
+    const issue = await Issue.findById(id)
+      .populate("departmentId", "name code contactEmail slaHours")
+      .populate("reporterId", "name email phone")
+      .populate("activeWorkOrderId");
 
     if (!issue) {
       throw new NotFoundError(`Issue with ID ${id} not found`);
     }
 
-    const detections = await Detection.find({ matchedIssueId: issue._id }).sort({ detectedAt: -1 });
-    const workOrders = await WorkOrder.find({ issueId: issue._id }).sort({ createdAt: -1 });
+    const workOrders = await WorkOrder.find({ issueId: issue._id })
+      .populate("evidenceIds")
+      .sort({ createdAt: -1 });
 
-    // Check for nearby construction project conflicts (within 200m)
+    const auditHistory = await AuditLog.find({
+      entityType: "ISSUE",
+      entityId: issue._id,
+    }).sort({ timestamp: -1 });
+
     let nearbyProjects: unknown[] = [];
     if (issue.location?.coordinates) {
       nearbyProjects = await ConstructionProject.find({
@@ -63,16 +88,16 @@ export async function getIssueById(req: Request, res: Response) {
 
     return sendSuccess(res, {
       issue,
-      detections,
       workOrders,
       nearbyProjects,
+      auditHistory,
     });
   } catch (error) {
     return sendError(res, error);
   }
 }
 
-export async function createCitizenReport(req: Request, res: Response) {
+export async function createCitizenReport(req: AuthenticatedRequest, res: Response) {
   try {
     const parsed = CitizenReportSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -81,9 +106,10 @@ export async function createCitizenReport(req: Request, res: Response) {
 
     const { category, title, description, coordinates, addressText, imageBase64 } = parsed.data;
 
-    let snapshotUrl: string | undefined;
+    const evidencePhotos: string[] = [];
     if (imageBase64) {
-      snapshotUrl = await saveBase64Image(imageBase64, `citizen_${category.toLowerCase()}`);
+      const snapshotUrl = await saveBase64Image(imageBase64, `citizen_${category.toLowerCase()}`);
+      evidencePhotos.push(snapshotUrl);
     }
 
     const deptSuggestion = await suggestDepartmentForCategory(category);
@@ -113,12 +139,15 @@ export async function createCitizenReport(req: Request, res: Response) {
       priorityReasons: ["Citizen reported complaint", ...priority.priorityReasons],
       status: "NEW",
       duplicateCount: 0,
-      initialDetectionFrame: snapshotUrl,
+      evidencePhotos,
+      reporterId: req.user?.id ? new mongoose.Types.ObjectId(req.user.id) : undefined,
       firstReportedAt: new Date(),
       lastUpdatedAt: new Date(),
     });
 
     await logAuditEvent({
+      actorId: req.user?.id,
+      actorName: req.user?.name || "Citizen Reporter",
       action: "CITIZEN_REPORT_SUBMITTED",
       entityType: "ISSUE",
       entityId: newIssue._id.toString(),
@@ -173,7 +202,8 @@ export async function triageIssue(req: AuthenticatedRequest, res: Response) {
         evidenceIds: [],
       });
 
-      issue.status = "IN_PROGRESS";
+      issue.status = "ASSIGNED";
+      issue.activeWorkOrderId = workOrder._id as any;
       await issue.save();
     }
 

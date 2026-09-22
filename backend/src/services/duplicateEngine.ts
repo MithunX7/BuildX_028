@@ -1,5 +1,5 @@
 import { Issue, IIssue } from "../models/Issue";
-import { CivicDefectCategory } from "./detectionService";
+import { CivicDefectCategory } from "../types/issue";
 
 export interface DuplicateMatchCandidate {
   issue: IIssue;

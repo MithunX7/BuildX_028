@@ -1,4 +1,4 @@
-import { CivicDefectCategory } from "./detectionService";
+import { CivicDefectCategory } from "../types/issue";
 
 export type PriorityLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 

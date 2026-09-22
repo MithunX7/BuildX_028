@@ -16,17 +16,19 @@ export interface Issue {
     _id: string;
     name: string;
     code: string;
-    slaHours: Record<string, number>;
+    slaHours?: Record<string, number>;
   };
   priorityLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   priorityScore: number;
   priorityReasons: string[];
-  status: 'NEW' | 'TRIAGED' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED';
+  status: 'NEW' | 'TRIAGED' | 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_VERIFICATION' | 'RESOLVED' | 'REOPENED' | 'REJECTED';
   duplicateCount: number;
-  initialDetectionFrame?: string;
+  evidencePhotos?: string[];
+  activeWorkOrderId?: any;
   firstReportedAt: string;
   lastUpdatedAt: string;
   resolvedAt?: string;
+  reporterId?: any;
 }
 
 export const issueService = {
@@ -37,20 +39,24 @@ export const issueService = {
     search?: string;
   } = {}): Promise<Issue[]> => {
     const query = new URLSearchParams();
-    if (params.category) query.append('category', params.category);
-    if (params.status) query.append('status', params.status);
-    if (params.priorityLevel) query.append('priorityLevel', params.priorityLevel);
-    if (params.search) query.append('search', params.search);
+    if (params.category && params.category !== 'ALL') query.append('category', params.category);
+    if (params.status && params.status !== 'ALL') query.append('status', params.status);
+    if (params.priorityLevel && params.priorityLevel !== 'ALL') query.append('priorityLevel', params.priorityLevel);
+    if (params.search && params.search.trim()) query.append('search', params.search.trim());
 
     const queryString = query.toString();
     return apiClient.get<Issue[]>(`/issues${queryString ? `?${queryString}` : ''}`);
   },
 
+  getMyReports: async (): Promise<Issue[]> => {
+    return apiClient.get<Issue[]>('/issues/my-reports');
+  },
+
   getIssueById: async (id: string): Promise<{
     issue: Issue;
-    detections: any[];
     workOrders: any[];
     nearbyProjects: any[];
+    auditHistory: any[];
   }> => {
     return apiClient.get(`/issues/${id}`);
   },

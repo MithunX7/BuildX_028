@@ -6,117 +6,103 @@
 [![Vitest](https://img.shields.io/badge/Tests-12%2F12%20Passed%20(100%25)-emerald)](backend/tests/)
 [![GitHub](https://img.shields.io/badge/GitHub-MithunX7%2FBuildX__028-blue?logo=github)](https://github.com/MithunX7/BuildX_028)
 
-**NagpurOne** is an enterprise-grade, responsive municipal infrastructure and road maintenance platform engineered for Nagpur Municipal Corporation (NMC). It integrates **Live Video Stream Computer Vision Detection** with automated civic grievance triage, explainable risk prioritization, department routing, contractor work order dispatch, and engineering photo quality verification.
+**NagpurOne** is an enterprise-grade municipal infrastructure and road maintenance platform engineered for Nagpur Municipal Corporation (NMC). It features automated civic grievance triage, explainable risk prioritization, department routing, contractor work order dispatch, engineering photo quality verification, and strict role-based access control (RBAC) cleanly separating Citizen and Administrative operational workflows.
 
 ---
 
 ## 🏛️ Architectural Overview
 
-The repository has been decoupled into dedicated, self-contained `frontend/` and `backend/` layers:
+The repository is organized into distinct, self-contained `frontend/` and `backend/` layers:
 
 ```text
 BUID-X/
 ├── backend/                        # Node.js + Express + TypeScript Backend
 │   ├── src/
-│   │   ├── controllers/            # Auth, Detection, Issues, WorkOrders, Construction, Dashboard
-│   │   ├── models/                 # Mongoose 8 2dsphere GeoJSON Models
-│   │   ├── routes/                 # Express REST Endpoints
-│   │   ├── services/               # Explainable Prioritization, Duplicate Engine, Routing, Detection
-│   │   ├── utils/                  # MongoDB Connection & Logging
+│   │   ├── controllers/            # Admin, Auth, Issues, WorkOrders, Construction, Dashboard
+│   │   ├── middleware/             # requireAuth, requireAdmin (Strict RBAC)
+│   │   ├── models/                 # Mongoose 8 2dsphere GeoJSON Models (Issue, WorkOrder, User, etc.)
+│   │   ├── routes/                 # Express REST Endpoints (authRoutes, issueRoutes, adminRoutes, etc.)
+│   │   ├── services/               # Prioritization, Duplicate Engine, Routing, Audit Logger
+│   │   ├── utils/                  # MongoDB Connection & Logger
 │   │   └── server.ts               # Express Entrypoint (Port 5000)
 │   ├── scripts/
-│   │   └── seed-data.ts            # Nagpur Atlas Database Seeder (7 roles, departments, issues, conflicts)
-│   ├── tests/unit/                 # Vitest Suite (12 Unit Tests for Routing, Detection, Prioritization)
+│   │   ├── seed-data.ts            # Nagpur Atlas Database Seeder
+│   │   └── test-rbac-live.js       # Live End-to-End RBAC & API Verification Script
+│   ├── tests/unit/                 # Vitest Suite (12 Unit Tests for RBAC, Routing, Prioritization)
 │   ├── package.json
 │   └── tsconfig.json
 │
 ├── frontend/                       # Vite + React 18 + Tailwind CSS Frontend
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── console/            # LiveVideoPlayer, DetectionStream, QuickTriagePanel, OperationsMap
-│   │   │   ├── navigation/         # ConsoleNavbar (Responsive Hamburger Drawer + 1-Click Role Switcher)
+│   │   │   ├── auth/               # ProtectedRoute (Citizen/User), AdminRoute (Strict Admin Guard)
+│   │   │   ├── navigation/         # ConsoleNavbar (Role-aware navigation with quick credentials)
 │   │   │   └── ui/                 # Accessible Badge, Button, Modal components
-│   │   ├── pages/                  # Responsive pages: Home, Dashboard, Triage, WorkOrders, Verification, Construction, Citizen Report, Issue Tracking, Login
+│   │   ├── pages/                  
+│   │   │   ├── admin/              # Operational Admin: Dashboard, Issues, Triage, Work Orders,
+│   │   │   │                       # Verification, Construction, Users, Audit Logs, Admin Profile
+│   │   │   ├── DashboardPage.tsx   # Citizen Personal Dashboard (My Reports, Recent Activity, Quick Report)
+│   │   │   ├── MyReportsPage.tsx   # Citizen Grievance History with Status Badges & Evidence Photos
+│   │   │   ├── PublicReportPage.tsx# Citizen Grievance Reporting with GPS Geolocation & Real Photo Upload
+│   │   │   ├── IssueDetailsPage.tsx# Public & Citizen Issue Tracking (Progress steps, Map coordinates, Evidence)
+│   │   │   ├── ProfilePage.tsx     # Citizen Profile Management & Session Termination
+│   │   │   ├── HomePage.tsx        # Nagpur Civic Public Landing Page
+│   │   │   ├── PublicIssuesPage.tsx# Public Civic Transparency Feed
+│   │   │   └── LoginPage.tsx       # Secure Authentication & Role Dispatcher
 │   │   ├── services/
-│   │   │   └── apiClient.ts        # Centralized Axios Client (Auth Token Injection, Reverse Proxy)
-│   │   ├── App.tsx                 # React Router DOM 6 Layout
+│   │   │   ├── apiClient.ts        # Centralized Axios Client (Auth Token Injection & Request Interceptors)
+│   │   │   ├── authService.ts      # Authentication & Profile Services
+│   │   │   ├── issueService.ts     # Grievance & Citizen Report Services
+│   │   │   └── adminService.ts     # Administrative Operations & System Telemetry Services
+│   │   ├── App.tsx                 # React Router DOM 6 Layout with Route Guards
 │   │   └── main.tsx
 │   ├── package.json
 │   ├── vite.config.ts              # Reverse Proxy `/api` -> `http://localhost:5000`
 │   └── tailwind.config.js
 │
-├── package.json                    # Monorepo Root Script Orchestrator
+├── package.json                    # Monorepo Script Orchestrator
 └── README.md
 ```
 
 ---
 
-## 📱 Full Responsive Design System
+## 🔒 Role-Based Access Control (RBAC) & User Separation
 
-The frontend is designed with dynamic layouts and micro-animations for three responsive tiers:
-- **Mobile (320px – 767px)**:
-  - Collapsible slide-over drawer navigation with touch-friendly touch targets.
-  - Stacked full-width camera player with quick control toggles.
-  - Scrollable detection pills and swipeable triage cards.
-  - Sticky bottom action bars for field contractors uploading evidence.
-- **Tablet (768px – 1023px)**:
-  - 2-column adaptive layout for camera stream and real-time detection telemetry.
-  - Side-by-side photo comparison for engineering verification.
-- **Desktop (1024px+)**:
-  - Full widescreen operations dashboard with synchronized multi-panel triage, detection telemetry, interactive zone map, and instant drawer overrides.
+NagpurOne strictly isolates the **Citizen (USER)** and **Administrative (ADMIN)** operational portals:
 
----
+### 👤 Citizen / USER Experience
+- **Personal Dashboard (`/dashboard`)**: Displays user-specific metrics (My Reports count, In Progress, Resolved), quick report launcher, and recent submission list.
+- **My Reports (`/my-reports`)**: Full history of complaints submitted by the authenticated citizen, complete with real uploaded photo evidence, live status progress bars, and SLA indicators.
+- **Submit Report (`/report`)**: Interactive form with real device geolocation capture (`navigator.geolocation`) and real photo file upload (JPEG/PNG converted to base64 evidence).
+- **Issue Tracking (`/issues/:id`)**: Public and citizen tracking page showing issue timeline, assigned department, and resolution status.
+- **Profile (`/profile`)**: Manage personal details (name, phone, address, ward) and secure logout.
+- **Security**: Citizen accounts are completely blocked from administrative APIs. Accessing any `/api/admin/*` endpoint returns `403 Forbidden`. Attempting to open `/admin/*` in the browser triggers the `AdminRoute` guard which displays a security alert and redirects to `/dashboard`.
 
-## 🌟 Key Features
-
-1. **Live Video Detection Console (Visual Centerpiece)**
-   - Real-time video canvas detection with animated bounding boxes, label tags, and confidence scores.
-   - Built-in webcam support or 5 multi-problem Nagpur patrol scenes:
-     - **Scene 1**: Severe Pothole Crater on Wardha Road (`POTHOLE`, 89% conf, High Priority).
-     - **Scene 2**: Overflowing Garbage Dump at Sitabuldi (`GARBAGE_ACCUMULATION`, 94% conf).
-     - **Scene 3**: Broken Streetlight Luminaire on Central Avenue (`STREETLIGHT_FAULT`, 86% conf).
-     - **Scene 4**: Unmarked Pipe Excavation Debris (`ROAD_OBSTRUCTION`, 92% conf, flags utility conflict).
-     - **Scene 5**: Re-surveying Wardha Road Pothole (Duplicate Proximity Detection within 12m).
-
-2. **Explainable Risk Prioritization Engine**
-   - Transparent, audit-proof scoring formula:
-     $$\text{Score} = \text{BaseSeverity} + \text{ProximityBonus} + \text{DuplicateBonus} + \text{AgeBonus}$$
-   - Geospatial bonuses calculated for key Nagpur landmarks: GMC Hospital, Sitabuldi Metro Interchange, Dharampeth High School, and Wardha Road High-Speed Corridor.
-
-3. **Geospatial Duplicate Consolidation Engine**
-   - Uses MongoDB `2dsphere` geospatial indexing and `$near` queries within a 50m radius.
-   - Automatically increments duplicate counters and links detection evidence rather than cluttering municipal queues with redundant tickets.
-
-4. **Municipal Department Routing**
-   - Automatic routing rules for:
-     - Roads & Traffic Department (`ROADS`, SLA: 24h)
-     - Solid Waste Management (`SANITATION`, SLA: 12h)
-     - Electrical & Public Lighting (`ELECTRICAL`, SLA: 24h)
-     - Water Works & Drainage (`WATER_WORKS`, SLA: 18h)
-   - Coordinator override capabilities with persistent audit logging.
-
-5. **Work Order Lifecycle & Quality Verification**
-   - Automated SLA countdowns, priority dispatch to contractors, and photo evidence upload.
-   - Verification queue with side-by-side before/after photo inspection, *Approve & Resolve*, or *Reject & Reopen with Notes*.
-
-6. **Construction Conflict Engine**
-   - Cross-checks reported road defects against scheduled utility excavations (e.g. MahaMetro Feeder Pipe or Water Pipeline trenching) to prevent repaving roads scheduled for immediate digging.
+### 🛡️ Municipal Officer / ADMIN Experience
+- **Command Center (`/admin`)**: Municipal-wide key performance indicators, department resolution rates, SLA adherence, and quick operational shortcuts.
+- **Issue Management (`/admin/issues`)**: Filter, inspect, and monitor all civic issues citywide.
+- **Triage & Risk Prioritization (`/admin/triage`)**: Algorithmic risk scoring breakdown based on severity, landmark proximity (GMC Hospital, Sitabuldi Metro, etc.), duplicate density, and age. Department manual override capabilities.
+- **Contractor Work Orders (`/admin/work-orders`)**: SLA countdown timers, contractor assignment, status workflow updates, and real field completion photo upload.
+- **Engineering Verification (`/admin/verification`)**: Side-by-side inspection of citizen defect photos vs contractor repair proof with *Approve & Resolve* or *Reject & Reopen* actions.
+- **Utility Conflict Engine (`/admin/construction`)**: Active road utility trenching detection to prevent repaving roads scheduled for excavation.
+- **User Management (`/admin/users`)**: Municipal roster showing user accounts, assigned roles, and department affiliations.
+- **Audit Logs (`/admin/audit-logs`)**: Immutable compliance log of all triage adjustments, work order updates, and administrative actions.
+- **Admin Profile (`/admin/profile`)**: Officer profile settings, credentials, and session management.
 
 ---
 
-## 👥 Demo User Credentials
+## 👥 Demo User Accounts
 
-All demo accounts share the password: **`nagpur123`** (or click any role in the navbar **1-Click Role Switcher**):
+All demo accounts share the password: **`nagpur123`** (or select the convenient quick-fill button on the Login page):
 
-| Role | Name | Email | Default Dashboard Access |
+| Role | Name | Email | Initial Redirect |
 |---|---|---|---|
-| **Operations Commander** | Cmdr. Rajesh Sharma | `commander@nmc.nagpur.gov.in` | Complete System Overview & Analytics |
-| **Roads Coordinator** | Er. Amit Deshmukh | `coordinator.roads@nmc.nagpur.gov.in` | Triage Queue & Department Dispatch |
-| **Field Patrol / Contractor** | Sanjay Patel | `inspector.patrol@nmc.nagpur.gov.in` | Work Orders & Evidence Upload |
-| **Chief Quality Verifier** | Er. Priya Kulkarni | `verifier.eng@nmc.nagpur.gov.in` | Engineering Photo Verification |
-| **Helpline Operator** | Kavita Rao | `operator.helpline@nmc.nagpur.gov.in` | Public Ingestion & Triage |
-| **Resident Citizen** | Anand Joshi | `citizen.nagpur@gmail.com` | Grievance Reporting & Tracking |
-| **System Administrator** | System Administrator | `admin@nmc.nagpur.gov.in` | Full Administrative Permissions |
+| **Resident Citizen** | Anand Joshi | `citizen.nagpur@gmail.com` | `/dashboard` (Citizen Portal) |
+| **System Administrator** | System Administrator | `admin@nmc.nagpur.gov.in` | `/admin` (Command Center) |
+| **Operations Commander** | Cmdr. Rajesh Sharma | `commander@nmc.nagpur.gov.in` | `/admin` (Command Center) |
+| **Roads Coordinator** | Er. Amit Deshmukh | `coordinator.roads@nmc.nagpur.gov.in` | `/admin/triage` |
+| **Field Contractor** | Sanjay Patel | `inspector.patrol@nmc.nagpur.gov.in` | `/admin/work-orders` |
+| **Chief Quality Verifier** | Er. Priya Kulkarni | `verifier.eng@nmc.nagpur.gov.in` | `/admin/verification` |
 
 ---
 
@@ -124,14 +110,14 @@ All demo accounts share the password: **`nagpur123`** (or click any role in the 
 
 ### 1. Prerequisites
 - Node.js 18+ or 20+
-- Access to MongoDB Atlas (pre-configured in `backend/.env`)
+- Access to MongoDB Atlas (configured in `backend/.env`)
 
-### 2. Quick Launch from Root
+### 2. Quick Launch
 ```bash
-# Start backend (Port 5000)
+# Terminal 1: Launch Backend Server (Port 5000)
 npm run dev:backend
 
-# Start frontend (Port 3000)
+# Terminal 2: Launch Frontend Server (Port 3000)
 npm run dev:frontend
 ```
 
@@ -139,7 +125,7 @@ Frontend application: **`http://localhost:3000`**
 Backend REST API: **`http://localhost:5000`**
 
 ### 3. Database Seeding
-To re-seed the MongoDB Atlas database with demo departments, users, projects, and defects:
+To populate or refresh the MongoDB Atlas database with demo departments, users, projects, and defects:
 ```bash
 npm run seed:backend
 ```
@@ -150,43 +136,82 @@ npm run test:backend
 ```
 Output:
 ```text
-✓ tests/unit/detection.test.ts (4 tests)
+✓ tests/unit/rbac.test.ts (4 tests)
 ✓ tests/unit/prioritization.test.ts (4 tests)
 ✓ tests/unit/routing.test.ts (4 tests)
 Test Files: 3 passed (3) | Tests: 12 passed (12)
 ```
 
+### 5. Running Live RBAC Integration Tests
+Verify real MongoDB API authentication and role separation against the running server:
+```bash
+node backend/scripts/test-rbac-live.js
+```
+All 8 verification checks pass:
+- Unauthenticated requests blocked (`401 Unauthorized`)
+- Citizen login authenticated
+- Citizen forbidden from `/api/admin/users` (`403 Forbidden`)
+- Admin permitted on `/api/admin/users` (`200 OK`)
+- Real grievance creation with photo evidence
+- Citizen `/api/issues/my` filtering
+- Public issue detail accessible
+
 ---
 
 ## 🧭 Application Routes
 
-| Route | Description |
-|---|---|
-| `/` | NagpurOne Public Portal (Citizen Hero, Key Statistics, Quick Access) |
-| `/operations/dashboard` | Central Command Console (Live Video Player, Real-Time Detection Feed, Quick Triage, Ward Map) |
-| `/operations/triage` | Operational Triage Queue with explainable risk breakdown & manual overrides |
-| `/operations/work-orders` | Contractor Work Order Management & Photo Evidence Submission |
-| `/operations/verification` | Quality Engineering Photo Verification (Before / After Comparison) |
-| `/operations/construction` | Scheduled Excavations & Spatial Conflict Detection |
-| `/report` | Citizen Grievance Reporting Portal with GPS Geolocation |
-| `/issues/:id` | Citizen Public Issue Tracking Status |
-| `/login` | Multi-role login with 1-Click Role Switcher |
+### Public & Citizen Routes
+| Route | Access | Description |
+|---|---|---|
+| `/` | Public | Nagpur civic public landing page with statistics and navigation |
+| `/login` | Public | Secure authentication portal with role auto-fill |
+| `/issues` | Public | Public transparency feed of reported issues across Nagpur |
+| `/issues/:id` | Public | Detailed grievance status tracking, timeline, and photo proof |
+| `/dashboard` | Citizen (USER) | Personal citizen dashboard with user report metrics |
+| `/my-reports` | Citizen (USER) | History of reports submitted by the logged-in citizen |
+| `/report` | Citizen (USER) | Citizen issue submission with real GPS & photo file upload |
+| `/profile` | Citizen (USER) | Citizen profile management & account settings |
+
+### Administrative Operational Routes (Protected by `requireAdmin`)
+| Route | Access | Description |
+|---|---|---|
+| `/admin` | ADMIN | Municipal Command Console with citywide metrics and quick triage |
+| `/admin/issues` | ADMIN | Citywide issue repository and filtering |
+| `/admin/triage` | ADMIN | Priority scoring breakdown, SLA tracking, and department overrides |
+| `/admin/work-orders` | ADMIN | Contractor work order dispatch & completion photo evidence upload |
+| `/admin/verification` | ADMIN | Dual-photo engineering inspection & resolution approval |
+| `/admin/construction` | ADMIN | Scheduled excavation projects & road cut spatial conflict warnings |
+| `/admin/users` | ADMIN | Municipal personnel roster and account permissions |
+| `/admin/audit-logs` | ADMIN | Immutable activity log of administrative decisions |
+| `/admin/profile` | ADMIN | Officer profile settings and department affiliation |
 
 ---
 
 ## 📡 Backend REST API Endpoints
 
-- `GET /api/health` — System health and MongoDB Atlas connectivity status
-- `POST /api/auth/login` — Role authentication with JWT token generation
-- `GET /api/auth/me` — Current authenticated user profile
-- `GET /api/dashboard/summary` — Aggregate metrics, SLA compliance, defect category breakdown
-- `GET /api/issues` — Paginated list of civic grievances with priority scores and duplicate counts
+### Authentication & Profile (`/api/auth`)
+- `POST /api/auth/login` — User authentication returning JWT token and role
+- `POST /api/auth/register` — Citizen account registration
+- `GET /api/auth/me` — Retrieve current authenticated user profile
+- `PUT /api/auth/profile` — Update authenticated user profile details
+
+### Grievances & Issues (`/api/issues`)
+- `GET /api/issues` — Paginated list of civic grievances with priority scores
+- `GET /api/issues/my` — Reports submitted exclusively by the authenticated citizen
 - `GET /api/issues/:id` — Single issue detail with audit history and evidence photos
-- `POST /api/issues` — Create citizen complaint or system defect with duplicate detection
-- `PATCH /api/issues/:id/triage` — Override department or priority with explanation
-- `POST /api/detection/analyze-frame` — Run computer vision detection simulation on video frame
-- `GET /api/work-orders` — List contractor work orders with SLA countdowns
-- `POST /api/work-orders/:id/evidence` — Submit field contractor completion photo evidence
-- `POST /api/work-orders/:id/verify` — Engineering verification approval or rejection
-- `GET /api/construction-projects` — Active road utility projects
+- `POST /api/issues` — Create civic grievance with GPS coordinates and photo evidence
+- `PATCH /api/issues/:id/triage` — Override department or priority with explanation *(Admin only)*
+
+### Administrative Operations (`/api/admin`) *(Strict `requireAdmin` enforcement)*
+- `GET /api/admin/summary` — Citywide operational metrics, SLA stats, and category distribution
+- `GET /api/admin/users` — List registered users and municipal officers
+- `GET /api/admin/audit-logs` — Immutable audit trail of operational actions
+
+### Work Orders & Verification (`/api/work-orders`)
+- `GET /api/work-orders` — Contractor work orders with SLA countdowns
+- `POST /api/work-orders/:id/evidence` — Submit contractor completion photo evidence
+- `POST /api/work-orders/:id/verify` — Quality engineering approval or rejection *(Admin only)*
+
+### Construction Conflicts (`/api/construction-projects`)
+- `GET /api/construction-projects` — Active road excavation and utility projects
 - `GET /api/construction-projects/conflicts` — Spatial and temporal road cut conflict warnings

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getIssues,
+  getMyReports,
   getIssueById,
   createCitizenReport,
   triageIssue,
@@ -11,9 +12,10 @@ import { optionalAuth, requireAuth } from "../middleware/authMiddleware";
 const router = Router();
 
 router.get("/", getIssues);
-router.post("/", createCitizenReport);
+router.get("/my-reports", requireAuth, getMyReports);
+router.post("/", optionalAuth, createCitizenReport);
 router.get("/:id", getIssueById);
-router.post("/:id/triage", optionalAuth, triageIssue);
-router.post("/:id/verify", optionalAuth, verifyIssue);
+router.post("/:id/triage", requireAuth, triageIssue);
+router.post("/:id/verify", requireAuth, verifyIssue);
 
 export default router;

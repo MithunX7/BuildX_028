@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { Issue } from "../models/Issue";
-import { Detection } from "../models/Detection";
 import { WorkOrder } from "../models/WorkOrder";
 import { ConstructionConflict } from "../models/ConstructionConflict";
 import { sendSuccess, sendError } from "../utils/response";
@@ -12,7 +11,7 @@ export async function getDashboardSummary(req: Request, res: Response) {
       openIssues,
       criticalIssues,
       resolvedIssues,
-      totalDetections,
+      totalWorkOrders,
       activeWorkOrders,
       pendingVerification,
       activeConflicts,
@@ -21,10 +20,10 @@ export async function getDashboardSummary(req: Request, res: Response) {
       Issue.countDocuments({ status: { $nin: ["RESOLVED", "REJECTED"] } }),
       Issue.countDocuments({ priorityLevel: "CRITICAL", status: { $nin: ["RESOLVED", "REJECTED"] } }),
       Issue.countDocuments({ status: "RESOLVED" }),
-      Detection.countDocuments({}),
+      WorkOrder.countDocuments({}),
       WorkOrder.countDocuments({ status: { $in: ["ASSIGNED", "IN_PROGRESS"] } }),
       WorkOrder.countDocuments({ status: { $in: ["SUBMITTED_FOR_VERIFICATION", "COMPLETED_PENDING_VERIFICATION"] } }),
-      ConstructionConflict.countDocuments({ status: "ACTIVE" }),
+      ConstructionConflict.countDocuments({ isResolved: false }),
     ]);
 
     const categoryStats = await Issue.aggregate([
@@ -37,7 +36,7 @@ export async function getDashboardSummary(req: Request, res: Response) {
         openIssues,
         criticalIssues,
         resolvedIssues,
-        totalDetections,
+        totalWorkOrders,
         activeWorkOrders,
         pendingVerification,
         activeConflicts,

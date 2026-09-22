@@ -1,7 +1,6 @@
 export * from "./User";
 export * from "./Department";
 export * from "./Issue";
-export * from "./Detection";
 export * from "./WorkOrder";
 export * from "./Evidence";
 export * from "./ConstructionProject";

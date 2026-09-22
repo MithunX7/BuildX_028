@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
-import { CivicDefectCategory } from "@/types/detection";
-import { PriorityLevel, IssueStatus } from "@/types/issue";
+import { CivicDefectCategory, PriorityLevel, IssueStatus } from "../types/issue";
 
 export interface IIssue extends Document {
   referenceCode: string;
@@ -19,7 +18,8 @@ export interface IIssue extends Document {
   priorityReasons: string[];
   status: IssueStatus;
   duplicateCount: number;
-  initialDetectionFrame?: string;
+  reporterId?: Types.ObjectId;
+  evidencePhotos?: string[];
   activeWorkOrderId?: Types.ObjectId;
   firstReportedAt: Date;
   lastUpdatedAt: Date;
@@ -33,7 +33,7 @@ const IssueSchema = new Schema<IIssue>(
     referenceCode: { type: String, required: true, unique: true, index: true },
     category: {
       type: String,
-      enum: ["POTHOLE", "GARBAGE_ACCUMULATION", "STREETLIGHT_FAULT", "ROAD_OBSTRUCTION", "DAMAGED_ASSET"],
+      enum: ["POTHOLE", "GARBAGE_ACCUMULATION", "STREETLIGHT_FAULT", "ROAD_OBSTRUCTION", "DAMAGED_ASSET", "ROAD_SURFACE_DAMAGE", "CONSTRUCTION_CONFLICT"],
       required: true,
       index: true,
     },
@@ -78,7 +78,8 @@ const IssueSchema = new Schema<IIssue>(
       index: true,
     },
     duplicateCount: { type: Number, default: 0 },
-    initialDetectionFrame: { type: String },
+    reporterId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    evidencePhotos: { type: [String], default: [] },
     activeWorkOrderId: { type: Schema.Types.ObjectId, ref: "WorkOrder" },
     firstReportedAt: { type: Date, default: Date.now },
     lastUpdatedAt: { type: Date, default: Date.now },
@@ -91,6 +92,7 @@ const IssueSchema = new Schema<IIssue>(
 IssueSchema.index({ location: "2dsphere" });
 IssueSchema.index({ status: 1, priorityLevel: 1 });
 IssueSchema.index({ departmentId: 1, status: 1 });
+IssueSchema.index({ reporterId: 1, createdAt: -1 });
 
 export const Issue: Model<IIssue> =
   mongoose.models.Issue || mongoose.model<IIssue>("Issue", IssueSchema);

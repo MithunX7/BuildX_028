@@ -4,11 +4,11 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { connectToDatabase, isDbConnected } from './config/database';
 import authRoutes from './routes/authRoutes';
-import detectionRoutes from './routes/detectionRoutes';
 import issueRoutes from './routes/issueRoutes';
 import workOrderRoutes from './routes/workOrderRoutes';
 import constructionRoutes from './routes/constructionRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import adminRoutes from './routes/adminRoutes';
 import { ensureStorageDirectory } from './services/storageService';
 
 dotenv.config();
@@ -41,12 +41,11 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/detection', detectionRoutes);
-app.use('/api/detections', detectionRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/work-orders', workOrderRoutes);
 app.use('/api/construction-projects', constructionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error Fallback
 app.use((err: any, req: Request, res: Response, next: any) => {

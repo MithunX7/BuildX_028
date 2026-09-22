@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { CivicDefectCategory } from "./detectionService";
+import { CivicDefectCategory } from "../types/issue";
 import { Department } from "../models/Department";
 
 export interface DepartmentRoutingSuggestion {

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
-import { UserRole } from "@/types/auth";
+import { UserRole } from "../types/auth";
 
 export interface IUser extends Document {
   name: string;
@@ -20,8 +20,8 @@ const UserSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["COMMANDER", "COORDINATOR", "INSPECTOR", "VERIFIER", "OPERATOR", "CITIZEN", "ADMIN"],
-      default: "CITIZEN",
+      enum: ["USER", "ADMIN", "COMMANDER", "COORDINATOR", "INSPECTOR", "VERIFIER", "OPERATOR", "CITIZEN"],
+      default: "USER",
     },
     departmentId: { type: Schema.Types.ObjectId, ref: "Department" },
     phone: { type: String },

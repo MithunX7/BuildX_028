@@ -38,7 +38,7 @@ export const QuickTriagePanel: React.FC<QuickTriagePanelProps> = ({
         </div>
         <h4 className="text-xs sm:text-sm font-bold text-slate-300">No Issue Selected</h4>
         <p className="text-[11px] sm:text-xs text-slate-400 max-w-xs mt-1">
-          Click an issue from the detection stream or map to inspect AI prioritization and dispatch a work order.
+          Click an issue from the intake list or spatial map to inspect risk prioritization and dispatch a work order.
         </p>
       </div>
     );

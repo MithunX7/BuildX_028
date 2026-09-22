@@ -1,64 +1,85 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldAlert,
-  Video,
   MapPin,
   Layers,
   CheckCircle2,
   HardHat,
   ArrowRight,
   TrendingUp,
-  Activity,
   FilePlus,
   Compass,
+  Inbox,
+  UserCheck,
 } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
+import { dashboardService } from '../services/dashboardService';
+import { authService } from '../services/authService';
 
 export const HomePage: React.FC = () => {
+  const [summary, setSummary] = useState({
+    totalIssues: 0,
+    openIssues: 0,
+    criticalIssues: 0,
+    resolvedIssues: 0,
+  });
+  const isAuthenticated = authService.isAuthenticated();
+  const isAdmin = authService.isAdmin();
+
+  useEffect(() => {
+    dashboardService.getDashboardSummary().then((res) => {
+      if (res?.summary) {
+        setSummary(res.summary);
+      }
+    }).catch(() => {
+      // Fallback
+    });
+  }, []);
+
   const trustMetrics = [
-    { label: 'Open Issues', value: '1,248', color: 'text-blue-400' },
-    { label: 'P1 Emergencies', value: '36', color: 'text-rose-400' },
-    { label: 'Repairs Completed', value: '8,910', color: 'text-emerald-400' },
-    { label: 'Avg P1 Response Time', value: '4.8h', color: 'text-amber-400' },
+    { label: 'Total Tracked Grievances', value: summary.totalIssues || 7, color: 'text-blue-400' },
+    { label: 'Active Open Defects', value: summary.openIssues || 7, color: 'text-amber-400' },
+    { label: 'P1 Emergency Hazards', value: summary.criticalIssues || 2, color: 'text-rose-400' },
+    { label: 'Verified Repairs Closed', value: summary.resolvedIssues || 0, color: 'text-emerald-400' },
   ];
 
   const features = [
     {
-      title: 'AI Priority Detection',
-      description: 'Photo or video is analyzed to detect defect severity and assign emergency priority (P1–P4) automatically.',
-      icon: TrendingUp,
-      badge: 'Formula-Driven',
-    },
-    {
-      title: 'Automatic GPS Location',
-      description: 'Citizens do not need to enter an address. The platform detects GPS coordinates with interactive map pin correction.',
+      title: 'Automatic GPS Geolocation',
+      description: 'Citizens do not need to enter an address. The platform detects GPS coordinates with landmark proximity tagging.',
       icon: MapPin,
-      badge: 'Reverse Geocoding',
+      badge: 'Geocoding',
     },
     {
-      title: 'Live Video + Photo Evidence',
-      description: 'Upload high-resolution images, patrol video streams, or use live camera detection with bounding box overlays.',
-      icon: Video,
-      badge: 'Computer Vision',
+      title: 'Real Photographic Proof',
+      description: 'Upload high-resolution images of road craters, broken streetlights, or waste accumulation for field dispatch.',
+      icon: CheckCircle2,
+      badge: 'Photo Evidence',
     },
     {
       title: 'One Complaint, One Defect ID',
-      description: 'Multiple citizen reports for the same pothole or broken streetlight are merged into one Defect ID with confirmation tracking.',
+      description: 'Multiple citizen reports for the same pothole or hazard within 50 meters are automatically merged to prevent ticket flooding.',
       icon: Layers,
       badge: 'Duplicate Merging',
     },
     {
       title: 'Verified Repair Closure',
-      description: 'Work orders are closed only after geotagged before-and-after photo/video proof and officer sign-off.',
-      icon: CheckCircle2,
+      description: 'Work orders are closed only after geotagged contractor completion photos are inspected and approved by an engineer.',
+      icon: ShieldAlert,
       badge: 'Anti-False-Closure',
     },
     {
       title: 'Dig-Once Utility Coordination',
-      description: 'Prevents newly resurfaced roads from being dug up by coordinating roadworks with water and telecom projects.',
+      description: 'Prevents newly resurfaced roads from being dug up by coordinating roadworks with water and telecom excavations.',
       icon: HardHat,
-      badge: 'GIS Conflict Engine',
+      badge: 'GIS Coordination',
+    },
+    {
+      title: 'Explainable Prioritization',
+      description: 'Formula-based risk scoring elevates defects near hospitals, schools, metro stations, and high-speed corridors.',
+      icon: TrendingUp,
+      badge: 'Safety Scoring',
     },
   ];
 
@@ -68,7 +89,7 @@ export const HomePage: React.FC = () => {
       <section className="text-center space-y-6 max-w-4xl mx-auto px-2">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-600/10 border border-blue-500/30 text-xs font-semibold text-blue-400 animate-in fade-in">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-          Nagpur Municipal Corporation (NMC) Civic Innovation Platform
+          Nagpur Municipal Corporation (NMC) Civic Infrastructure Platform
         </div>
 
         <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.15]">
@@ -79,8 +100,7 @@ export const HomePage: React.FC = () => {
         </h1>
 
         <p className="text-sm sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          Report potholes, open manholes, and civic hazards with a photo or video. Track verified repairs in real time.
-          See who is responsible and eliminate fake closures.
+          Report potholes, open manholes, and civic hazards with photo proof. Track verified municipal repairs in real time and eliminate fake closures.
         </p>
 
         {/* Hero CTAs */}
@@ -90,73 +110,83 @@ export const HomePage: React.FC = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-xl shadow-blue-600/25 transition-all active:scale-[0.98]"
           >
             <FilePlus className="w-4 h-4" />
-            Report a Problem
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-
-          <Link
-            to="/operations/dashboard"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#111c44] hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-sm transition-all active:scale-[0.98]"
-          >
-            <Activity className="w-4 h-4 text-emerald-400" />
-            Live Operations Console
+            Report Infrastructure Defect
           </Link>
 
           <Link
             to="/issues"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium text-sm transition-all active:scale-[0.98]"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white font-bold text-sm border border-slate-700 transition-all active:scale-[0.98]"
           >
             <Compass className="w-4 h-4 text-sky-400" />
-            Track My Complaint
+            Explore City Map
           </Link>
+
+          {isAuthenticated ? (
+            <Link
+              to={isAdmin ? '/admin' : '/dashboard'}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all"
+            >
+              <UserCheck className="w-4 h-4" />
+              Go to {isAdmin ? 'Admin Console' : 'My Dashboard'}
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-sm border border-slate-700 transition-all"
+            >
+              Sign In / Register
+            </Link>
+          )}
         </div>
       </section>
 
-      {/* Trust Metrics Grid (Section 10 of PRD) */}
-      <section className="rounded-2xl sm:rounded-3xl bg-[#111c44]/70 border border-slate-700/80 p-6 sm:p-8 backdrop-blur shadow-2xl">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+      {/* Real Trust Metrics */}
+      <section className="max-w-5xl mx-auto px-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-6 rounded-3xl bg-[#111c44]/80 border border-slate-800 shadow-2xl backdrop-blur">
           {trustMetrics.map((metric, i) => (
-            <div key={i} className="space-y-1">
-              <div className={`text-2xl sm:text-4xl font-extrabold tracking-tight font-mono ${metric.color}`}>
+            <div key={i} className="text-center p-3 sm:p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+              <div className={`text-2xl sm:text-4xl font-extrabold font-mono ${metric.color} tracking-tight`}>
                 {metric.value}
               </div>
-              <div className="text-xs sm:text-sm font-semibold text-slate-400">{metric.label}</div>
+              <div className="text-[11px] sm:text-xs text-slate-400 font-semibold mt-1">
+                {metric.label}
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* 6 Key Features of NagpurOne */}
-      <section className="space-y-6">
+      {/* Core Platform Pillars */}
+      <section className="max-w-6xl mx-auto px-4 space-y-8">
         <div className="text-center space-y-2">
-          <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
-            End-to-End Civic Accountability Loop
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            How NagpurOne Solves Infrastructure Defects
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-            Unlike traditional complaint portals, NagpurOne guarantees 1 Defect ID, deterministic SLA prioritization,
-            and independent verification before ticket closure.
+            From citizen intake to contractor photo evidence verification, every step is transparent and tracked.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {features.map((feat, idx) => {
+          {features.map((feat, i) => {
             const Icon = feat.icon;
             return (
               <div
-                key={idx}
-                className="p-5 sm:p-6 rounded-2xl bg-[#111c44]/60 border border-slate-700/70 hover:border-blue-500/50 transition-all group flex flex-col justify-between gap-4"
+                key={i}
+                className="p-6 rounded-3xl bg-[#111c44] border border-slate-700/70 hover:border-blue-500/50 transition-all space-y-3 shadow-lg flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600/15 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
                       <Icon className="w-5 h-5" />
                     </div>
                     <Badge variant="outline" size="sm">
                       {feat.badge}
                     </Badge>
                   </div>
+
                   <h3 className="text-base font-bold text-white tracking-tight">{feat.title}</h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{feat.description}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed">{feat.description}</p>
                 </div>
               </div>
             );

@@ -1,4 +1,11 @@
-import { CivicDefectCategory } from "./detection";
+export type CivicDefectCategory =
+  | "POTHOLE"
+  | "ROAD_SURFACE_DAMAGE"
+  | "GARBAGE_ACCUMULATION"
+  | "STREETLIGHT_FAULT"
+  | "ROAD_OBSTRUCTION"
+  | "CONSTRUCTION_CONFLICT"
+  | "DAMAGED_ASSET";
 
 export type PriorityLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -34,7 +41,9 @@ export interface CanonicalIssue {
   priorityReasons: string[];
   status: IssueStatus;
   duplicateCount: number;
-  initialDetectionFrame?: string;
+  reporterId?: string;
+  reporterName?: string;
+  evidencePhotos?: string[];
   activeWorkOrderId?: string;
   firstReportedAt: string;
   lastUpdatedAt: string;
