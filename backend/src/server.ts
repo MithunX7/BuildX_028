@@ -29,6 +29,8 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Static uploads serving
 app.use('/uploads', express.static(path.resolve(process.env.STORAGE_PATH || './uploads')));
+// Seed images fallback (tracked in git, always available)
+app.use('/uploads', express.static(path.resolve('./public/seed-images')));
 
 // Health Check
 app.get('/api/health', (req: Request, res: Response) => {
