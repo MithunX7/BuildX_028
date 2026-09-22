@@ -25,6 +25,7 @@ import {
   MaintenanceDashboard,
   ScoreBreakdown,
 } from '../../services/maintenanceService';
+import { RoadMap } from '../../components/console/RoadMap';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -310,6 +311,8 @@ export const AdminSmartMaintenancePage: React.FC = () => {
   const [newBudget, setNewBudget] = useState(100);
   const [showDeferred, setShowDeferred] = useState(false);
 
+  const [selectedRoadId, setSelectedRoadId] = useState<string | undefined>(undefined);
+
   const load = useCallback(async () => {
     try {
       const data = await maintenanceService.getDashboard();
@@ -477,6 +480,18 @@ export const AdminSmartMaintenancePage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Live Road Map ── */}
+      {(dashboard?.roads?.length ?? 0) > 0 && (
+        <RoadMap
+          roads={dashboard!.roads}
+          selectedRoadId={selectedRoadId}
+          onSelectRoad={(road) => {
+            setSelectedRoadId(road._id);
+            openRoadDetail(road);
+          }}
+        />
+      )}
+
       {/* ── Budget Section ── */}
       {dashboard?.budget && (
         <div className="space-y-3">
@@ -637,7 +652,7 @@ export const AdminSmartMaintenancePage: React.FC = () => {
         <RoadDetailModal
           road={selectedRoad}
           breakdown={modalLoading ? null : selectedBreakdown}
-          onClose={() => { setSelectedRoad(null); setSelectedBreakdown(null); }}
+          onClose={() => { setSelectedRoad(null); setSelectedBreakdown(null); setSelectedRoadId(undefined); }}
         />
       )}
     </div>

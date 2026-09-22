@@ -1,6 +1,15 @@
-import React from 'react';
-import { MapPin, HardHat, Compass } from 'lucide-react';
-import { Badge } from '../ui/Badge';
+import React, { useEffect, useRef, useCallback } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Compass, HardHat } from 'lucide-react';
+
+// Fix Leaflet's default icon path issue with Vite bundler
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 interface OperationsMapProps {
   issues: any[];
@@ -8,121 +17,304 @@ interface OperationsMapProps {
   onSelectIssue?: (issue: any) => void;
 }
 
+// ─── Priority colours ─────────────────────────────────────────────────────────
+const PRIORITY_COLOR: Record<string, string> = {
+  CRITICAL: '#f43f5e',
+  HIGH:     '#f59e0b',
+  MEDIUM:   '#38bdf8',
+  LOW:      '#22c55e',
+};
+
+const PRIORITY_GLOW: Record<string, string> = {
+  CRITICAL: 'rgba(244,63,94,0.45)',
+  HIGH:     'rgba(245,158,11,0.45)',
+  MEDIUM:   'rgba(56,189,248,0.45)',
+  LOW:      'rgba(34,197,94,0.45)',
+};
+
+// ─── Build a custom DivIcon for each issue ────────────────────────────────────
+function buildDivIcon(priority: string, isSelected: boolean): L.DivIcon {
+  const color  = PRIORITY_COLOR[priority]  || PRIORITY_COLOR.MEDIUM;
+  const glow   = PRIORITY_GLOW[priority]   || PRIORITY_GLOW.MEDIUM;
+  const size   = isSelected ? 22 : 16;
+  const pulse  = priority === 'CRITICAL' ? `
+    <span style="
+      position:absolute;inset:0;border-radius:50%;
+      background:${color};opacity:0.4;
+      animation:leaflet-pulse 1.5s ease-out infinite;
+    "></span>` : '';
+
+  return L.divIcon({
+    className: '',
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2 + 4)],
+    html: `
+      <div style="position:relative;width:${size}px;height:${size}px;">
+        ${pulse}
+        <div style="
+          position:absolute;inset:0;border-radius:50%;
+          background:${color};
+          border:2px solid white;
+          box-shadow:0 0 0 2px ${glow},0 4px 12px ${glow};
+          transition:transform 0.15s;
+          ${isSelected ? 'transform:scale(1.4);' : ''}
+        "></div>
+      </div>`,
+  });
+}
+
+// ─── Map tile providers ───────────────────────────────────────────────────────
+const TILE_LAYERS = {
+  standard: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  carto_dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+  },
+  carto_light: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+  },
+};
+
+// ─── CSS for pulse animation ──────────────────────────────────────────────────
+const PULSE_STYLE = `
+@keyframes leaflet-pulse {
+  0%   { transform: scale(1);   opacity: 0.5; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(1);   opacity: 0; }
+}
+.leaflet-container {
+  font-family: inherit;
+  background: #0d1526;
+}
+.leaflet-popup-content-wrapper {
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  color: white;
+  padding: 0;
+}
+.leaflet-popup-tip-container { display: none; }
+.leaflet-popup-content { margin: 0; }
+.leaflet-control-zoom a {
+  background: #0f172a !important;
+  color: #94a3b8 !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+.leaflet-control-zoom a:hover {
+  background: #1e293b !important;
+  color: white !important;
+}
+.leaflet-control-attribution {
+  background: rgba(0,0,0,0.6) !important;
+  color: #64748b !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a { color: #94a3b8 !important; }
+`;
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export const OperationsMap: React.FC<OperationsMapProps> = ({
   issues,
   selectedIssueId,
   onSelectIssue,
 }) => {
-  const minLng = 79.04;
-  const maxLng = 79.12;
-  const minLat = 21.09;
-  const maxLat = 21.17;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef          = useRef<L.Map | null>(null);
+  const markersRef      = useRef<Map<string, L.Marker>>(new Map());
+  const tileLayerRef    = useRef<L.TileLayer | null>(null);
 
-  const projectToPercent = (lng: number, lat: number) => {
-    const x = ((lng - minLng) / (maxLng - minLng)) * 100;
-    const y = 100 - ((lat - minLat) / (maxLat - minLat)) * 100;
-    return { x: Math.max(8, Math.min(x, 92)), y: Math.max(8, Math.min(y, 92)) };
-  };
+  // ─ Popup HTML builder ──────────────────────────────────────────────────────
+  const buildPopupHtml = useCallback((issue: any): string => {
+    const color = PRIORITY_COLOR[issue.priorityLevel] || PRIORITY_COLOR.MEDIUM;
+    const cat = (issue.category || '').replace(/_/g, ' ');
+    return `
+      <div style="padding:12px 14px;min-width:210px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${color};">
+            ${issue.priorityLevel}
+          </span>
+          <span style="margin-left:auto;font-family:monospace;font-size:10px;color:#64748b;">${issue.referenceCode || ''}</span>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:#f1f5f9;line-height:1.3;margin-bottom:4px;">${issue.title || 'Untitled Issue'}</div>
+        ${issue.location?.addressText ? `<div style="font-size:10px;color:#94a3b8;margin-bottom:6px;">📍 ${issue.location.addressText}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          <span style="padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;">
+            ${cat}
+          </span>
+          <span style="padding:2px 8px;border-radius:99px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;">
+            ${(issue.status || 'NEW').replace(/_/g, ' ')}
+          </span>
+        </div>
+      </div>`;
+  }, []);
+
+  // ─ Initialise map once ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    // Inject CSS
+    const styleEl = document.createElement('style');
+    styleEl.textContent = PULSE_STYLE;
+    document.head.appendChild(styleEl);
+
+    // Create map centred on Nagpur
+    const map = L.map(mapContainerRef.current, {
+      center: [21.1458, 79.0882],
+      zoom: 13,
+      zoomControl: true,
+      attributionControl: true,
+    });
+
+    // Dark CartoDB tile layer (looks stunning, no API key)
+    const tile = L.tileLayer(TILE_LAYERS.carto_dark.url, {
+      attribution: TILE_LAYERS.carto_dark.attribution,
+      maxZoom: 20,
+      subdomains: 'abcd',
+    }).addTo(map);
+
+    tileLayerRef.current = tile;
+    mapRef.current = map;
+
+    // Layer control: switch between dark, light, standard
+    const overlays: Record<string, L.TileLayer> = {};
+    const baseLayers: Record<string, L.TileLayer> = {
+      '🌑 Dark (Default)': tile,
+      '☀️ Light': L.tileLayer(TILE_LAYERS.carto_light.url, {
+        attribution: TILE_LAYERS.carto_light.attribution,
+        maxZoom: 20,
+        subdomains: 'abcd',
+      }),
+      '🗺️ Standard OSM': L.tileLayer(TILE_LAYERS.standard.url, {
+        attribution: TILE_LAYERS.standard.attribution,
+        maxZoom: 19,
+      }),
+    };
+    L.control.layers(baseLayers, overlays, { position: 'topright', collapsed: true }).addTo(map);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      markersRef.current.clear();
+      styleEl.remove();
+    };
+  }, []);
+
+  // ─ Sync markers when issues change ────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const currentIds = new Set(issues.map((i) => i._id || i.id));
+
+    // Remove stale markers
+    markersRef.current.forEach((marker, id) => {
+      if (!currentIds.has(id)) {
+        marker.remove();
+        markersRef.current.delete(id);
+      }
+    });
+
+    // Add / update markers
+    issues.forEach((issue) => {
+      const id       = issue._id || issue.id;
+      const coords   = issue.location?.coordinates;
+      if (!coords || coords.length < 2) return;
+
+      const lat       = coords[1];
+      const lng       = coords[0];
+      const isSelected = selectedIssueId === id;
+
+      const existing = markersRef.current.get(id);
+      if (existing) {
+        existing.setIcon(buildDivIcon(issue.priorityLevel, isSelected));
+      } else {
+        const marker = L.marker([lat, lng], {
+          icon: buildDivIcon(issue.priorityLevel, isSelected),
+          zIndexOffset: isSelected ? 1000 : 0,
+        });
+
+        marker.bindPopup(buildPopupHtml(issue), {
+          maxWidth: 260,
+          minWidth: 210,
+          closeButton: false,
+          className: 'nmc-popup',
+        });
+
+        marker.on('click', () => {
+          onSelectIssue && onSelectIssue(issue);
+          marker.openPopup();
+        });
+
+        marker.addTo(map);
+        markersRef.current.set(id, marker);
+      }
+    });
+  }, [issues, selectedIssueId, onSelectIssue, buildPopupHtml]);
+
+  // ─ Fly-to on selection ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedIssueId) return;
+
+    const issue = issues.find((i) => (i._id || i.id) === selectedIssueId);
+    if (!issue) return;
+
+    const coords = issue.location?.coordinates;
+    if (!coords || coords.length < 2) return;
+
+    map.flyTo([coords[1], coords[0]], Math.max(map.getZoom(), 15), {
+      animate: true,
+      duration: 0.8,
+    });
+
+    // Open its popup
+    const marker = markersRef.current.get(selectedIssueId);
+    if (marker) {
+      marker.setIcon(buildDivIcon(issue.priorityLevel, true));
+      setTimeout(() => marker.openPopup(), 400);
+    }
+  }, [selectedIssueId, issues, buildPopupHtml]);
 
   return (
-    <div className="rounded-2xl sm:rounded-3xl bg-[#111c44] border border-slate-700/80 shadow-2xl p-4 sm:p-5 flex flex-col gap-3 h-full">
+    <div className="rounded-2xl sm:rounded-3xl border border-slate-700/60 shadow-2xl overflow-hidden flex flex-col h-full min-h-[360px]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#0d1526]/90 backdrop-blur-sm border-b border-white/[0.07] flex-shrink-0">
         <div className="flex items-center gap-2">
           <Compass className="w-4 h-4 text-sky-400 flex-shrink-0" />
           <h3 className="text-sm font-bold text-white tracking-tight">Nagpur Spatial Intelligence</h3>
+          <span className="hidden sm:inline text-[10px] text-slate-500 font-mono ml-1">21.1458°N · 79.0882°E</span>
         </div>
-        <Badge variant="warning" size="sm">
-          <HardHat className="w-3 h-3 mr-1" /> Metro Dig-Once Zone
-        </Badge>
+        <div className="flex items-center gap-2">
+          {/* Live indicator */}
+          <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            LIVE
+          </span>
+          <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25">
+            <HardHat className="w-3 h-3 text-amber-400" />
+            <span className="text-[10px] font-bold text-amber-400">Metro Zone</span>
+          </div>
+        </div>
       </div>
 
-      {/* Map Graphic Surface */}
-      <div className="relative w-full aspect-video min-h-[220px] rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner flex items-center justify-center">
-        {/* Street Network Grid Lines */}
-        <svg className="absolute inset-0 w-full h-full opacity-30 stroke-slate-700" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-              <path d="M 30 0 L 0 0 0 30" fill="none" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          {/* Simulated Major Arterial Roads in Nagpur */}
-          <line x1="15%" y1="90%" x2="55%" y2="45%" stroke="#38bdf8" strokeWidth="2.5" strokeOpacity="0.5" />
-          <line x1="55%" y1="45%" x2="85%" y2="20%" stroke="#38bdf8" strokeWidth="2.5" strokeOpacity="0.5" />
-          <line x1="10%" y1="45%" x2="90%" y2="45%" stroke="#64748b" strokeWidth="1.5" strokeOpacity="0.3" />
-        </svg>
+      {/* Map container — Leaflet mounts here */}
+      <div ref={mapContainerRef} className="flex-1 w-full" style={{ minHeight: 320 }} />
 
-        {/* Major Nagpur Landmark Labels */}
-        <div className="absolute top-[20%] left-[52%] text-[9px] sm:text-[10px] font-bold text-slate-400 pointer-events-none">
-          Sitabuldi Metro
-        </div>
-        <div className="absolute bottom-[18%] left-[22%] text-[9px] sm:text-[10px] font-bold text-slate-400 pointer-events-none">
-          Wardha Road High-Speed
-        </div>
-        <div className="absolute top-[42%] left-[16%] text-[9px] sm:text-[10px] font-bold text-slate-400 pointer-events-none">
-          Dharampeth Square
-        </div>
-
-        {/* Construction Conflict Polygon Overlay (Dharampeth Metro Pipe Cut) */}
-        <div className="absolute top-[38%] left-[15%] w-20 sm:w-24 h-16 sm:h-20 rounded-xl border-2 border-amber-500/70 bg-amber-500/15 backdrop-blur-[1px] flex flex-col items-center justify-center p-1 pointer-events-none animate-pulse">
-          <HardHat className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-[8px] sm:text-[9px] font-bold text-amber-300 text-center leading-tight mt-0.5">
-            MahaMetro Utility Work
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 bg-[#0d1526]/90 backdrop-blur-sm border-t border-white/[0.07] flex-shrink-0">
+        {Object.entries(PRIORITY_COLOR).map(([level, color]) => (
+          <span key={level} className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+            {level.charAt(0) + level.slice(1).toLowerCase()}
           </span>
-        </div>
-
-        {/* Render Issue Pins */}
-        {issues.map((issue) => {
-          const coords = issue.location?.coordinates || [79.08, 21.14];
-          const { x, y } = projectToPercent(coords[0], coords[1]);
-          const isSelected = selectedIssueId === (issue._id || issue.id);
-
-          let pinBg = 'bg-blue-500';
-          if (issue.priorityLevel === 'CRITICAL') pinBg = 'bg-rose-500';
-          if (issue.priorityLevel === 'HIGH') pinBg = 'bg-amber-500';
-
-          return (
-            <button
-              key={issue._id || issue.id}
-              onClick={() => onSelectIssue && onSelectIssue(issue)}
-              style={{ top: `${y}%`, left: `${x}%` }}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer transition-all z-20 ${
-                isSelected ? 'scale-125 z-30' : 'hover:scale-110'
-              }`}
-            >
-              <div
-                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full ${pinBg} text-slate-950 flex items-center justify-center shadow-lg font-bold text-xs border-2 border-white`}
-              >
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </div>
-
-              {/* Tooltip */}
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center pointer-events-none z-40 whitespace-nowrap">
-                <div className="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[10px] sm:text-[11px] font-bold text-white shadow-2xl">
-                  <span>{issue.referenceCode}</span> • <span className="text-amber-400">{issue.priorityLevel}</span>
-                </div>
-                <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-800" />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Map Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] sm:text-[11px] text-slate-400 pt-1">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-rose-500" /> Critical (P1)
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-amber-500" /> High (P2)
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500" /> Medium (P3)
-          </span>
-        </div>
-        <span className="text-[10px] text-slate-500 hidden sm:inline">Nagpur Coordinates (21.1458° N, 79.0882° E)</span>
+        ))}
+        <span className="ml-auto text-[10px] text-slate-600 hidden sm:inline">Click marker to inspect · Use layer switcher to change style</span>
       </div>
     </div>
   );
