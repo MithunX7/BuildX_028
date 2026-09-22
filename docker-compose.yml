@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nagpur-civic-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://aashukamblee_db_user:admin1234@ac-lv8p85n-shard-00-00.pycykvl.mongodb.net:27017,ac-lv8p85n-shard-00-01.pycykvl.mongodb.net:27017,ac-lv8p85n-shard-00-02.pycykvl.mongodb.net:27017/nagpur_civic?ssl=true&replicaSet=atlas-iqurnh-shard-0&authSource=admin&retryWrites=true&w=majority
+      - JWT_SECRET=nagpur-civic-super-secure-production-secret-2026
+      - CLIENT_ORIGIN=http://localhost:3000
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nagpur-civic-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=/api
+    depends_on:
+      - backend
