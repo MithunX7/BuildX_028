@@ -171,28 +171,28 @@ export const OperationsMap: React.FC<OperationsMapProps> = ({
       attributionControl: true,
     });
 
-    // Dark CartoDB tile layer (looks stunning, no API key)
-    const tile = L.tileLayer(TILE_LAYERS.carto_dark.url, {
-      attribution: TILE_LAYERS.carto_dark.attribution,
-      maxZoom: 20,
-      subdomains: 'abcd',
+    // Default: OpenStreetMap standard tiles (most reliable, no API key)
+    const tile = L.tileLayer(TILE_LAYERS.standard.url, {
+      attribution: TILE_LAYERS.standard.attribution,
+      maxZoom: 19,
     }).addTo(map);
 
     tileLayerRef.current = tile;
     mapRef.current = map;
 
-    // Layer control: switch between dark, light, standard
+    // Layer control: switch between standard, dark, light
     const overlays: Record<string, L.TileLayer> = {};
     const baseLayers: Record<string, L.TileLayer> = {
-      '🌑 Dark (Default)': tile,
+      '🗺️ Standard (Default)': tile,
+      '🌑 Dark': L.tileLayer(TILE_LAYERS.carto_dark.url, {
+        attribution: TILE_LAYERS.carto_dark.attribution,
+        maxZoom: 20,
+        subdomains: 'abcd',
+      }),
       '☀️ Light': L.tileLayer(TILE_LAYERS.carto_light.url, {
         attribution: TILE_LAYERS.carto_light.attribution,
         maxZoom: 20,
         subdomains: 'abcd',
-      }),
-      '🗺️ Standard OSM': L.tileLayer(TILE_LAYERS.standard.url, {
-        attribution: TILE_LAYERS.standard.attribution,
-        maxZoom: 19,
       }),
     };
     L.control.layers(baseLayers, overlays, { position: 'topright', collapsed: true }).addTo(map);
