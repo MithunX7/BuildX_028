@@ -37,12 +37,20 @@ export const WorkOrderVerifySchema = z.object({
 });
 
 export const CitizenReportSchema = z.object({
-  category: z.enum(["POTHOLE", "GARBAGE_ACCUMULATION", "STREETLIGHT_FAULT", "ROAD_OBSTRUCTION", "DAMAGED_ASSET"]),
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  coordinates: z.tuple([z.number(), z.number()]), // [lng, lat]
-  addressText: z.string().min(3, "Address or landmark is required"),
-  imageBase64: z.string().optional(),
+  category: z.enum([
+    "POTHOLE",
+    "GARBAGE_ACCUMULATION",
+    "STREETLIGHT_FAULT",
+    "ROAD_OBSTRUCTION",
+    "DAMAGED_ASSET",
+    "ROAD_SURFACE_DAMAGE",
+    "CONSTRUCTION_CONFLICT",
+  ]).or(z.string()).default("POTHOLE"),
+  title: z.string().optional().default("Civic Infrastructure Grievance"),
+  description: z.string().optional().default("Citizen reported municipal infrastructure defect needing repair."),
+  coordinates: z.union([z.tuple([z.number(), z.number()]), z.array(z.number())]).default([79.0882, 21.1458]),
+  addressText: z.string().optional().default("Nagpur Municipal Corporation Area"),
+  imageBase64: z.string().optional().nullable(),
 });
 
 export function validateBody(schema: z.ZodSchema) {

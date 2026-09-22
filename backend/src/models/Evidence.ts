@@ -3,9 +3,11 @@ import mongoose, { Schema, Document, Model, Types } from "mongoose";
 export interface IEvidence extends Document {
   issueId?: Types.ObjectId;
   workOrderId?: Types.ObjectId;
-  uploadedById: Types.ObjectId;
-  evidenceType: "DETECTION_SNAPSHOT" | "FIELD_REPAIR_COMPLETION" | "VERIFIER_INSPECTION";
+  uploadedById?: Types.ObjectId;
+  evidenceType: string;
   fileUrl: string;
+  mediaUrl?: string;
+  notes?: string;
   mimeType: string;
   fileSizeBytes: number;
   location?: {
@@ -20,13 +22,14 @@ const EvidenceSchema = new Schema<IEvidence>(
   {
     issueId: { type: Schema.Types.ObjectId, ref: "Issue", index: true },
     workOrderId: { type: Schema.Types.ObjectId, ref: "WorkOrder", index: true },
-    uploadedById: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    uploadedById: { type: Schema.Types.ObjectId, ref: "User", required: false },
     evidenceType: {
       type: String,
-      enum: ["DETECTION_SNAPSHOT", "FIELD_REPAIR_COMPLETION", "VERIFIER_INSPECTION"],
       default: "FIELD_REPAIR_COMPLETION",
     },
     fileUrl: { type: String, required: true },
+    mediaUrl: { type: String },
+    notes: { type: String },
     mimeType: { type: String, default: "image/jpeg" },
     fileSizeBytes: { type: Number, default: 0 },
     location: {

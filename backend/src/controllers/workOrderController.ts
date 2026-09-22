@@ -19,8 +19,9 @@ export async function getWorkOrders(req: Request, res: Response) {
 
     const workOrders = await WorkOrder.find(filter)
       .sort({ createdAt: -1 })
-      .populate("issueId", "referenceCode title category priorityLevel location initialDetectionFrame")
-      .populate("departmentId", "name code");
+      .populate("issueId", "referenceCode title category priorityLevel location initialDetectionFrame evidencePhotos")
+      .populate("departmentId", "name code")
+      .populate("evidenceIds");
 
     return sendSuccess(res, workOrders);
   } catch (error) {
@@ -33,7 +34,8 @@ export async function getWorkOrderById(req: Request, res: Response) {
     const { id } = req.params;
     const workOrder = await WorkOrder.findById(id)
       .populate("issueId")
-      .populate("departmentId");
+      .populate("departmentId")
+      .populate("evidenceIds");
 
     if (!workOrder) {
       throw new NotFoundError(`Work order ${id} not found`);
@@ -84,7 +86,7 @@ export async function updateProgress(req: AuthenticatedRequest, res: Response) {
 export async function uploadEvidence(req: AuthenticatedRequest, res: Response) {
   try {
     const { id } = req.params;
-    const { imageBase64, completionNotes, coordinates, evidenceType = "AFTER_REPAIR" } = req.body;
+    const { imageBase64, completionNotes, coordinates, evidenceType = "FIELD_REPAIR_COMPLETION" } = req.body;
 
     if (!imageBase64) {
       throw new ValidationError("Evidence image is required");
@@ -98,18 +100,21 @@ export async function uploadEvidence(req: AuthenticatedRequest, res: Response) {
     const evidenceDoc = await Evidence.create({
       issueId: workOrder.issueId,
       workOrderId: workOrder._id,
-      evidenceType,
+      evidenceType: evidenceType || "FIELD_REPAIR_COMPLETION",
+      fileUrl: imageUrl,
       mediaUrl: imageUrl,
       notes: completionNotes || "Repair completion evidence",
       coordinates,
-      uploadedBy: req.user?.id ? new mongoose.Types.ObjectId(req.user.id) : undefined,
-      uploadedAt: new Date(),
+      uploadedById: req.user?.id ? new mongoose.Types.ObjectId(req.user.id) : undefined,
+      capturedAt: new Date(),
     });
 
     workOrder.status = "SUBMITTED_FOR_VERIFICATION";
     workOrder.completedAt = new Date();
     workOrder.completionNotes = completionNotes;
-    workOrder.evidenceIds.push(evidenceDoc._id as mongoose.Types.ObjectId);
+    if (!workOrder.evidenceIds.includes(evidenceDoc._id as mongoose.Types.ObjectId)) {
+      workOrder.evidenceIds.push(evidenceDoc._id as mongoose.Types.ObjectId);
+    }
     await workOrder.save();
 
     await Issue.findByIdAndUpdate(workOrder.issueId, {

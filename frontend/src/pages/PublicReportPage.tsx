@@ -93,7 +93,8 @@ export const PublicReportPage: React.FC = () => {
       setSubmittedIssue(newIssue);
     } catch (err: any) {
       console.error('Failed to submit report:', err);
-      setErrorMessage(err.message || 'Unable to submit grievance. Please try again.');
+      const msg = err.response?.data?.error?.message || err.message || 'Unable to submit grievance. Please try again.';
+      setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }

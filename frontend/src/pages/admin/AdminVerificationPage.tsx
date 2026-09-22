@@ -74,8 +74,19 @@ export const AdminVerificationPage: React.FC = () => {
   };
 
   const initialPhoto =
-    selectedOrder?.issueId?.evidencePhotos?.[0] || selectedOrder?.issueId?.initialDetectionFrame;
-  const repairPhoto = selectedOrder?.evidenceIds?.[0]?.fileUrl;
+    selectedOrder?.issueId?.evidencePhotos?.[0] ||
+    selectedOrder?.issueId?.initialDetectionFrame ||
+    (Array.isArray(selectedOrder?.issueId?.evidencePhotos) && selectedOrder?.issueId?.evidencePhotos.length > 0
+      ? selectedOrder?.issueId?.evidencePhotos[0]
+      : null);
+
+  const repairPhoto =
+    selectedOrder?.evidenceIds?.[0]?.fileUrl ||
+    selectedOrder?.evidenceIds?.[0]?.mediaUrl ||
+    (typeof selectedOrder?.evidenceIds?.[0] === 'string' && selectedOrder?.evidenceIds?.[0]?.startsWith('/')
+      ? selectedOrder?.evidenceIds?.[0]
+      : null) ||
+    selectedOrder?.completionEvidenceUrl;
 
   return (
     <div className="space-y-6">

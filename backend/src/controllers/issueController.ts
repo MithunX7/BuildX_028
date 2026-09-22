@@ -101,21 +101,31 @@ export async function createCitizenReport(req: AuthenticatedRequest, res: Respon
   try {
     const parsed = CitizenReportSchema.safeParse(req.body);
     if (!parsed.success) {
-      throw new ValidationError("Invalid report payload", parsed.error.format());
+      const errDetail = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+      throw new ValidationError(`Invalid report payload: ${errDetail}`, parsed.error.format());
     }
 
     const { category, title, description, coordinates, addressText, imageBase64 } = parsed.data;
 
     const evidencePhotos: string[] = [];
-    if (imageBase64) {
-      const snapshotUrl = await saveBase64Image(imageBase64, `citizen_${category.toLowerCase()}`);
-      evidencePhotos.push(snapshotUrl);
+    if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.trim().length > 10) {
+      try {
+        const snapshotUrl = await saveBase64Image(imageBase64, `citizen_${category.toLowerCase()}`);
+        evidencePhotos.push(snapshotUrl);
+      } catch (imgErr) {
+        console.error('Failed to save citizen image, continuing without photo:', imgErr);
+      }
     }
+
+    const coords: [number, number] =
+      Array.isArray(coordinates) && coordinates.length >= 2
+        ? [Number(coordinates[0]) || 79.0882, Number(coordinates[1]) || 21.1458]
+        : [79.0882, 21.1458];
 
     const deptSuggestion = await suggestDepartmentForCategory(category);
     const priority = calculateExplainablePriority({
-      category,
-      coordinates,
+      category: category as any,
+      coordinates: coords,
       duplicateCount: 0,
     });
 
@@ -125,12 +135,12 @@ export async function createCitizenReport(req: AuthenticatedRequest, res: Respon
     const newIssue = await Issue.create({
       referenceCode: refCode,
       category,
-      title,
-      description,
+      title: title || `Reported ${String(category).replace('_', ' ')} Defect`,
+      description: description || "Citizen reported municipal infrastructure defect.",
       location: {
         type: "Point",
-        coordinates,
-        addressText,
+        coordinates: coords,
+        addressText: addressText || "Nagpur Municipal Area",
         zoneName: "Nagpur Municipal Zone",
       },
       departmentId: deptSuggestion.departmentId,
@@ -140,6 +150,7 @@ export async function createCitizenReport(req: AuthenticatedRequest, res: Respon
       status: "NEW",
       duplicateCount: 0,
       evidencePhotos,
+      initialDetectionFrame: evidencePhotos[0] || undefined,
       reporterId: req.user?.id ? new mongoose.Types.ObjectId(req.user.id) : undefined,
       firstReportedAt: new Date(),
       lastUpdatedAt: new Date(),

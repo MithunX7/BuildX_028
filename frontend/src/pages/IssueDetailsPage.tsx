@@ -71,9 +71,26 @@ export const IssueDetailsPage: React.FC = () => {
     );
   }
 
-  const initialPhoto = issueData.evidencePhotos?.[0] || issueData.initialDetectionFrame;
-  const completedWorkOrder = workOrders.find((w) => w.status === 'VERIFIED' || w.status === 'SUBMITTED_FOR_VERIFICATION');
-  const repairPhoto = completedWorkOrder?.evidenceIds?.[0]?.fileUrl;
+  const initialPhoto =
+    issueData.evidencePhotos?.[0] ||
+    issueData.initialDetectionFrame ||
+    (Array.isArray(issueData.evidencePhotos) && issueData.evidencePhotos.length > 0 ? issueData.evidencePhotos[0] : null);
+
+  const workOrderWithEvidence = workOrders.find(
+    (w) =>
+      (w.evidenceIds && w.evidenceIds.length > 0) ||
+      w.status === 'VERIFIED' ||
+      w.status === 'SUBMITTED_FOR_VERIFICATION' ||
+      w.completionEvidenceUrl
+  );
+
+  const repairPhoto =
+    workOrderWithEvidence?.evidenceIds?.[0]?.fileUrl ||
+    workOrderWithEvidence?.evidenceIds?.[0]?.mediaUrl ||
+    (typeof workOrderWithEvidence?.evidenceIds?.[0] === 'string' && workOrderWithEvidence?.evidenceIds?.[0]?.startsWith('/')
+      ? workOrderWithEvidence?.evidenceIds?.[0]
+      : null) ||
+    workOrderWithEvidence?.completionEvidenceUrl;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
