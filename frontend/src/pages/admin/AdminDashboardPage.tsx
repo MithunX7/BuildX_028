@@ -110,7 +110,7 @@ export const AdminDashboardPage: React.FC = () => {
       setDashboardData(stats);
       setIssues(issuesRes.issues || []);
       const verified = (workOrdersRes || []).filter(
-        (w: any) => w.status === 'VERIFIED' || w.status === 'RESOLVED'
+        (w: any) => w.status === 'VERIFIED'
       );
       setApprovedOrders(verified);
       if (issuesRes.issues?.length > 0 && !selectedIssue) {

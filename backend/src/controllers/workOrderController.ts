@@ -119,7 +119,7 @@ export async function uploadEvidence(req: AuthenticatedRequest, res: Response) {
     await workOrder.save();
 
     await Issue.findByIdAndUpdate(workOrder.issueId, {
-      status: "RESOLVED",
+      status: "SUBMITTED_FOR_VERIFICATION",
       lastUpdatedAt: new Date(),
     });
 
@@ -163,9 +163,12 @@ export async function verifyWorkOrder(req: AuthenticatedRequest, res: Response) 
     } else if (action === "REOPEN") {
       workOrder.status = "REOPENED";
       workOrder.verificationNotes = `Reopened: ${notes}`;
+      workOrder.verifiedAt = undefined;
+      workOrder.verifiedById = undefined;
 
       await Issue.findByIdAndUpdate(workOrder.issueId, {
-        status: "IN_PROGRESS",
+        status: "REOPENED",
+        lastUpdatedAt: new Date(),
       });
     }
 

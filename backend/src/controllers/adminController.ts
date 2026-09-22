@@ -302,6 +302,12 @@ export async function verifyAdminWorkOrder(req: AuthenticatedRequest, res: Respo
     const workOrder = await WorkOrder.findById(id);
     if (!workOrder) throw new NotFoundError("Work Order not found");
 
+    if (workOrder.status !== "SUBMITTED_FOR_VERIFICATION") {
+      throw new ValidationError(
+        `Cannot verify a work order in "${workOrder.status}" status. It must be "SUBMITTED_FOR_VERIFICATION".`
+      );
+    }
+
     const issue = await Issue.findById(workOrder.issueId);
 
     if (action === "APPROVE") {
@@ -334,6 +340,8 @@ export async function verifyAdminWorkOrder(req: AuthenticatedRequest, res: Respo
     } else {
       workOrder.status = "REOPENED";
       workOrder.verificationNotes = verificationNotes || "Quality rejected. Reopened for corrective work.";
+      workOrder.verifiedAt = undefined;
+      workOrder.verifiedById = undefined;
       await workOrder.save();
 
       if (issue) {

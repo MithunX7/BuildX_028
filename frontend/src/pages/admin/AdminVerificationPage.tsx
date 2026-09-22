@@ -24,6 +24,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { adminService } from '../../services/adminService';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export const AdminVerificationPage: React.FC = () => {
   const [workOrders, setWorkOrders] = useState<any[]>([]);
@@ -63,11 +64,11 @@ export const AdminVerificationPage: React.FC = () => {
   }, []);
 
   const pendingOrders = workOrders.filter(
-    (wo) => wo.status === 'SUBMITTED_FOR_VERIFICATION' || wo.status === 'IN_PROGRESS' || wo.status === 'ASSIGNED' || wo.status === 'CREATED'
+    (wo) => wo.status === 'SUBMITTED_FOR_VERIFICATION'
   );
 
   const approvedOrders = workOrders.filter(
-    (wo) => wo.status === 'VERIFIED' || wo.status === 'RESOLVED'
+    (wo) => wo.status === 'VERIFIED'
   );
 
   const filteredApprovedOrders = approvedOrders.filter((wo) => {
@@ -119,20 +120,23 @@ export const AdminVerificationPage: React.FC = () => {
   };
 
   const extractPhotos = (order: any) => {
-    const initialPhoto =
+    const initialPhoto = resolveImageUrl(
       order?.issueId?.evidencePhotos?.[0] ||
       order?.issueId?.initialDetectionFrame ||
       (Array.isArray(order?.issueId?.evidencePhotos) && order?.issueId?.evidencePhotos.length > 0
         ? order?.issueId?.evidencePhotos[0]
-        : null);
+        : null)
+    );
 
-    const repairPhoto =
+    const repairPhoto = resolveImageUrl(
       order?.evidenceIds?.[0]?.fileUrl ||
       order?.evidenceIds?.[0]?.mediaUrl ||
       (typeof order?.evidenceIds?.[0] === 'string' && order?.evidenceIds?.[0]?.startsWith('/')
         ? order?.evidenceIds?.[0]
         : null) ||
-      order?.completionEvidenceUrl;
+      order?.completionEvidenceUrl ||
+      null
+    );
 
     return { initialPhoto, repairPhoto };
   };
@@ -316,7 +320,7 @@ export const AdminVerificationPage: React.FC = () => {
                             onClick={() => setZoomModalOrder(selectedOrder)}
                             className="aspect-video rounded-2xl bg-slate-950 border border-white/[0.1] overflow-hidden shadow-inner cursor-pointer group relative"
                           >
-                            <img src={selectedInitialPhoto} alt="Before" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <img src={selectedInitialPhoto} alt="Before" className="w-full h-full object-cover group-hover:scale-105 transition-transform" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                               <Maximize2 className="w-4 h-4" /> Expand
                             </div>
@@ -338,7 +342,7 @@ export const AdminVerificationPage: React.FC = () => {
                             onClick={() => setZoomModalOrder(selectedOrder)}
                             className="aspect-video rounded-2xl bg-slate-950 border border-emerald-500/40 overflow-hidden shadow-inner ring-1 ring-emerald-500/30 cursor-pointer group relative"
                           >
-                            <img src={selectedRepairPhoto} alt="After" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <img src={selectedRepairPhoto} alt="After" className="w-full h-full object-cover group-hover:scale-105 transition-transform" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                               <Maximize2 className="w-4 h-4" /> Expand
                             </div>
