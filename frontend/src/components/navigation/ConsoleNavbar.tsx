@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Sparkles,
   Route,
+  Gauge,
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { isAdminRole } from '../../types/auth';
@@ -60,6 +61,7 @@ export const ConsoleNavbar: React.FC = () => {
     { href: '/admin/triage', label: 'Risk Triage', icon: Wrench },
     { href: '/admin/work-orders', label: 'Work Orders', icon: CheckCircle2 },
     { href: '/admin/verification', label: 'Photo Verify', icon: Shield },
+    { href: '/admin/maintenance', label: 'Smart Maintenance', icon: Gauge },
     { href: '/admin/construction', label: 'Utility GIS', icon: HardHat },
     { href: '/admin/users', label: 'Personnel', icon: Users },
     { href: '/admin/audit-logs', label: 'Audit Logs', icon: History },

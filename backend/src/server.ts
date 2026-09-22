@@ -9,6 +9,7 @@ import workOrderRoutes from './routes/workOrderRoutes';
 import constructionRoutes from './routes/constructionRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import adminRoutes from './routes/adminRoutes';
+import maintenanceRoutes from './routes/maintenanceRoutes';
 import { ensureStorageDirectory } from './services/storageService';
 
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/work-orders', workOrderRoutes);
 app.use('/api/construction-projects', constructionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 
 // Error Fallback
 app.use((err: any, req: Request, res: Response, next: any) => {

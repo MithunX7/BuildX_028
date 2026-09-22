@@ -24,6 +24,7 @@ import { AdminConstructionPage } from './pages/admin/AdminConstructionPage';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminAuditLogsPage } from './pages/admin/AdminAuditLogsPage';
 import { AdminProfilePage } from './pages/admin/AdminProfilePage';
+import { AdminSmartMaintenancePage } from './pages/admin/AdminSmartMaintenancePage';
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
             <Route path="/admin/profile" element={<AdminProfilePage />} />
+            <Route path="/admin/maintenance" element={<AdminSmartMaintenancePage />} />
           </Route>
 
           {/* Legacy route aliases redirected cleanly to admin equivalents */}
