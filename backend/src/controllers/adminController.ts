@@ -240,6 +240,8 @@ export async function getAdminWorkOrders(req: AuthenticatedRequest, res: Respons
       .populate("issueId")
       .populate("departmentId", "name code")
       .populate("evidenceIds")
+      .populate("verifiedById", "name email role")
+      .populate("assignedToId", "name email")
       .sort({ createdAt: -1 });
 
     return sendSuccess(res, { workOrders });

@@ -122,7 +122,7 @@ export async function createCitizenReport(req: AuthenticatedRequest, res: Respon
         ? [Number(coordinates[0]) || 79.0882, Number(coordinates[1]) || 21.1458]
         : [79.0882, 21.1458];
 
-    const deptSuggestion = await suggestDepartmentForCategory(category);
+    const deptSuggestion = await suggestDepartmentForCategory(category as any);
     const priority = calculateExplainablePriority({
       category: category as any,
       coordinates: coords,

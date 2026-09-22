@@ -21,7 +21,8 @@ export async function getWorkOrders(req: Request, res: Response) {
       .sort({ createdAt: -1 })
       .populate("issueId", "referenceCode title category priorityLevel location initialDetectionFrame evidencePhotos")
       .populate("departmentId", "name code")
-      .populate("evidenceIds");
+      .populate("evidenceIds")
+      .populate("verifiedById", "name email role");
 
     return sendSuccess(res, workOrders);
   } catch (error) {
